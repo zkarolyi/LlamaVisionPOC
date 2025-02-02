@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.AI;
 using Microsoft.Extensions.VectorData;
 using Microsoft.SemanticKernel.Connectors.InMemory;
+using System.Diagnostics;
 using static LlamaVisionPOC.SimpleChat;
 
 namespace LlamaVisionPOC
@@ -11,7 +12,8 @@ namespace LlamaVisionPOC
         {
 
             IChatClient client =
-                new OllamaChatClient(new Uri("http://localhost:11434/"), "phi3");
+                //new OllamaChatClient(new Uri("http://localhost:11434/"), "phi3");
+                new OllamaChatClient(new Uri("http://localhost:11434/"), "deepseek-r1");
 
             IEmbeddingGenerator<string, Embedding<float>> generator =
                 new OllamaEmbeddingGenerator(new Uri("http://localhost:11434/"), "nomic-embed-text"); //"all-minilm"
@@ -95,6 +97,8 @@ namespace LlamaVisionPOC
 
             List<string> questions = new()
             {
+                "Who was the first programmer?",
+                "Is most of the earth's surface land?",
                 "What is the capital city of France?",
                 "Who developed the theory of relativity?",
                 "What is the largest coral reef system in the world?",
@@ -110,13 +114,14 @@ namespace LlamaVisionPOC
             foreach (var question in questions)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(new string('-', 20));
                 Console.WriteLine(question);
                 Console.ResetColor();
                 var embedding = await generator.GenerateEmbeddingVectorAsync(question);
 
                 var searchOptions = new VectorSearchOptions()
                 {
-                    Top = 1,
+                    Top = 2,
                     VectorPropertyName = "Vector"
                 };
 
@@ -137,24 +142,38 @@ namespace LlamaVisionPOC
                     }
                 }
 
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine($"Found: {found}");
+                Console.ForegroundColor = ConsoleColor.Blue;
+                Console.WriteLine($"Using: {found}");
                 Console.ResetColor();
 
                 List<ChatMessage> messages =
                 [
-                    new ChatMessage(ChatRole.System, "You are a frendly asistant. Answer in shorts sentences."),
+                    new ChatMessage(ChatRole.System, "You are a frendly asistant. Explain your answer."),
                     new ChatMessage(ChatRole.Assistant, found.TrimEnd()),
                     new ChatMessage(ChatRole.User, question),
                 ];
 
-                var response = await client.CompleteAsync<AnswerObject>(messages);
+                ChatOptions options = new()
+                {
+                    ResponseFormat = ChatResponseFormat.Json,
+                    Temperature = 0.7f
+                };
+
+                var response = await client.CompleteAsync<AnswerObject>(messages, options);
 
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Message: {response.Result.Message}");
-                Console.WriteLine($"Intent: {response.Result.Intent}");
-                Console.WriteLine($"Confidence: {response.Result.Confidence}");
-                Console.WriteLine($"tokens: {response.Usage!.TotalTokenCount ?? -1}");
+                AnswerObject? res;
+                if (response.TryGetResult(out res))
+                {
+                    Console.WriteLine($"Message: {res.Message}");
+                    Console.WriteLine($"Intent: {res.Intent}");
+                    Console.WriteLine($"Confidence: {res.Confidence}");
+                    Console.WriteLine($"tokens: {response.Usage?.TotalTokenCount ?? -1}");
+                }
+                else
+                {
+                    Console.WriteLine($"Message: {response.Message.Text?.Trim() ?? "?"}");
+                }
                 Console.WriteLine();
                 Console.ResetColor();
             }

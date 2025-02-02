@@ -8,7 +8,8 @@ namespace LlamaVisionPOC
         {
 
             IChatClient client =
-                new OllamaChatClient(new Uri("http://localhost:11434/"), "phi3");
+            //new OllamaChatClient(new Uri("http://localhost:11434/"), "phi3");
+            new OllamaChatClient(new Uri("http://localhost:11434/"), "deepseek-r1");
 
             List<ChatMessage> messages =
             [
